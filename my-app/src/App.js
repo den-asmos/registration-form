@@ -1,73 +1,58 @@
 import './App.css';
-import { useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useEffect, useRef } from 'react';
 
-const initialState = { email: '', password: '', passwordSubmit: '' };
-
-const useStore = () => {
-	const [state, setState] = useState(initialState);
-
-	return {
-		getState: () => state,
-		updateState: (fieldName, value) => {
-			setState({ ...state, [fieldName]: value });
-		},
-		resetState: () => setState(initialState),
-	};
+const sendFormData = (formData) => {
+	console.log(formData);
 };
 
-const validateEmail = (email) => {
-	if (!/[-._\w]+@([\w-]+\.)+[\w]{2,4}/g.test(email) && email) {
-		return 'Wrong input';
-	}
-	return null;
-};
+const fieldSchema = yup.object().shape({
+	email: yup.string().required().email('Wrong input'),
+	password: yup.string().required('Password is requiered'),
+	passwordSubmit: yup.string().oneOf([yup.ref('password')], `Passwords don't match`),
+});
 
 export const App = () => {
-	const { getState, updateState, resetState } = useStore();
-	const { email, password, passwordSubmit } = getState();
-
-	const [emailError, setEmailError] = useState(null);
-	const [passwordError, setPasswordError] = useState(null);
-
 	const registerButtonRef = useRef(null);
 
-	const onChange = ({ target }) => updateState(target.name, target.value);
+	const {
+		register,
+		handleSubmit,
+		formState: { errors, isValid },
+		reset,
+	} = useForm({
+		defaultValues: { email: '', password: '', passwordSubmit: '' },
+		resolver: yupResolver(fieldSchema),
+	});
 
-	const onEmailBlur = ({ target }) => {
-		setEmailError(validateEmail(target.value));
-	};
+	const emailError = errors.email?.message;
+	const passwordError = errors.password?.message;
+	const passwordSubmitError = errors.passwordSubmit?.message;
 
-	const onPasswordSubmitBlur = () => {
-		if (password !== passwordSubmit) {
-			setPasswordError(`Passwords don't match`);
-		} else {
-			setPasswordError(null);
-
-			if (!emailError && email && password) {
-				registerButtonRef.current.focus();
-			}
+	useEffect(() => {
+		if (isValid) {
+			registerButtonRef.current.focus();
 		}
-	};
-
-	const onSubmit = (event) => {
-		event.preventDefault();
-		console.log(getState());
-		resetState();
-	};
+	}, [isValid]);
 
 	return (
 		<div className="wrapper">
 			<div className="registration">
 				<h1>Registration</h1>
-				<form onSubmit={onSubmit}>
+				<form
+					onSubmit={handleSubmit((event) => {
+						sendFormData(event);
+						reset();
+					})}
+				>
 					<div className="input-box">
 						<input
 							name="email"
 							type="email"
 							id="email"
-							value={email}
-							onChange={onChange}
-							onBlur={onEmailBlur}
+							{...register('email')}
 							placeholder=" "
 						/>
 						<label htmlFor="email">Email</label>
@@ -79,11 +64,11 @@ export const App = () => {
 							name="password"
 							type="password"
 							id="password"
-							value={password}
-							onChange={onChange}
+							{...register('password')}
 							placeholder=" "
 						/>
 						<label htmlFor="password">Password</label>
+						{passwordError && <div className="error">{passwordError}</div>}
 					</div>
 
 					<div className="input-box">
@@ -91,18 +76,16 @@ export const App = () => {
 							name="passwordSubmit"
 							type="password"
 							id="passwordSubmit"
-							value={passwordSubmit}
-							onChange={onChange}
-							onBlur={onPasswordSubmitBlur}
+							{...register('passwordSubmit')}
 							placeholder=" "
 						/>
 						<label htmlFor="passwordSubmit">Confirm Password</label>
-						{passwordError && <div className="error">{passwordError}</div>}
+						{passwordSubmitError && <div className="error">{passwordSubmitError}</div>}
 					</div>
 					<div className="btn">
 						<button
 							type="submit"
-							disabled={emailError || passwordError}
+							disabled={emailError || passwordError || passwordSubmitError}
 							ref={registerButtonRef}
 						>
 							Register
